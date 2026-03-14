@@ -22,6 +22,31 @@ type RootStateLike = {
   };
 };
 
+async function resolveServerUserIdentity(state: RootStateLike): Promise<{
+  userId: string | null;
+  firebaseUid: string | undefined;
+  loginUser: AppUser | null;
+}> {
+  const appUserId = state.auth.appUser?.id ?? null;
+  const firebaseUid = state.auth.firebaseUser?.uid;
+  const idToken = state.auth.idToken;
+
+  if (firebaseUid && idToken) {
+    try {
+      const loginData = await apiService.post<unknown>('/auth/login', { firebaseUid, idToken });
+      const loginUser = normalizeAppUser(loginData, { firebaseUid });
+      if (loginUser.id) {
+        return { userId: loginUser.id, firebaseUid, loginUser };
+      }
+      return { userId: appUserId, firebaseUid, loginUser };
+    } catch {
+      // Fall through to existing id if login resolution fails.
+    }
+  }
+
+  return { userId: appUserId, firebaseUid, loginUser: null };
+}
+
 type ProfileUpdateInput = Partial<UserProfile> & {
   firstName?: string;
   lastName?: string;
@@ -188,24 +213,22 @@ export const fetchCurrentUser = createAsyncThunk(
   async (_, { rejectWithValue, getState }) => {
     try {
       const state = getState() as RootStateLike;
-      const appUserId = state.auth.appUser?.id;
-      const firebaseUid = state.auth.firebaseUser?.uid;
-      const idToken = state.auth.idToken;
+      const { userId, firebaseUid, loginUser } = await resolveServerUserIdentity(state);
 
-      if (appUserId) {
-        const fullProfile = await apiService.get<unknown>(`/users/${appUserId}/full-profile`);
-        return normalizeAppUser(fullProfile, { firebaseUid });
+      if (userId) {
+        try {
+          const fullProfile = await apiService.get<unknown>(`/users/${userId}/full-profile`);
+          return normalizeAppUser(fullProfile, { firebaseUid });
+        } catch {
+          // Fall back to /users/:id in case full-profile fails due temporary schema mismatch.
+          const basicProfile = await apiService.get<unknown>(`/users/${userId}`);
+          return normalizeAppUser(basicProfile, { firebaseUid });
+        }
       }
 
-      if (firebaseUid && idToken) {
-        const loginData = await apiService.post<unknown>('/auth/login', { firebaseUid, idToken });
-        const normalized = normalizeAppUser(loginData, { firebaseUid });
-        if (!normalized.id) return normalized;
-        const fullProfile = await apiService.get<unknown>(`/users/${normalized.id}/full-profile`);
-        return normalizeAppUser(fullProfile, { firebaseUid });
-      }
+      if (loginUser) return loginUser;
 
-      throw new Error('Missing auth context for current user fetch');
+      throw new Error('Unable to resolve authenticated user');
     } catch (err: unknown) {
       return rejectWithValue((err as Error).message);
     }
@@ -217,8 +240,7 @@ export const updateUserProfile = createAsyncThunk(
   async (updates: ProfileUpdateInput, { rejectWithValue, getState }) => {
     try {
       const state = getState() as RootStateLike;
-      const userId = state.auth.appUser?.id;
-      const firebaseUid = state.auth.firebaseUser?.uid;
+      const { userId, firebaseUid } = await resolveServerUserIdentity(state);
       if (!userId) throw new Error('Missing authenticated user id');
 
       const userPayload = mapUserUpdates(updates);
@@ -244,8 +266,7 @@ export const updateUserPreferences = createAsyncThunk(
   async (prefs: Partial<UserPreferences>, { rejectWithValue, getState }) => {
     try {
       const state = getState() as RootStateLike;
-      const userId = state.auth.appUser?.id;
-      const firebaseUid = state.auth.firebaseUser?.uid;
+      const { userId, firebaseUid } = await resolveServerUserIdentity(state);
       if (!userId) throw new Error('Missing authenticated user id');
 
       const prefPayload = mapPreferenceUpdates(prefs);
