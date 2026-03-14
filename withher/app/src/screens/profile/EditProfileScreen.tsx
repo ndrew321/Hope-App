@@ -19,17 +19,17 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { updateUserProfile, fetchCurrentUser } from '../../store/slices/userSlice';
-import { apiClient } from '../../services/api';
+import { apiService } from '../../services/api';
 import { Colors, FontSize, FontWeight, Spacing, BorderRadius } from '../../constants/theme';
-import type { ProfileStackParamList } from '../../types';
+import type { ProfileStackParamList, CareerLevel } from '../../types';
 
 const POSITIONS = ['Forward', 'Midfielder', 'Defender', 'Goalkeeper', 'Winger', 'Striker'];
-const CAREER_LEVELS = ['YOUTH', 'HIGH_SCHOOL', 'COLLEGE', 'SEMI_PRO', 'PROFESSIONAL', 'COACH', 'ALUM'];
+const CAREER_LEVELS = ['YOUTH', 'HIGH_SCHOOL', 'COLLEGE', 'PROFESSIONAL', 'ALUM'];
 
 export default function EditProfileScreen(): React.JSX.Element {
   const dispatch = useAppDispatch();
   const navigation = useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
-  const { currentUser, isLoading } = useAppSelector((s) => s.user);
+  const { profile: currentUser, isLoading } = useAppSelector((s) => s.user);
   const profile = currentUser?.profile;
 
   const [firstName, setFirstName] = useState(currentUser?.firstName ?? '');
@@ -38,15 +38,32 @@ export default function EditProfileScreen(): React.JSX.Element {
   const [position, setPosition] = useState(profile?.position ?? '');
   const [currentTeam, setCurrentTeam] = useState(profile?.currentTeam ?? '');
   const [location, setLocation] = useState(profile?.location ?? '');
-  const [careerLevel, setCareerLevel] = useState(profile?.careerLevel ?? '');
+  const [careerLevel, setCareerLevel] = useState<CareerLevel | ''>(profile?.careerLevel ?? '');
   const [yearsExperience, setYearsExperience] = useState(String(profile?.yearsExperience ?? ''));
-  const [photoURI, setPhotoURI] = useState<string | null>(profile?.photoURL ?? null);
+  const [photoURI, setPhotoURI] = useState<string | null>(currentUser?.profilePhotoUrl ?? null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!profile) dispatch(fetchCurrentUser());
-  }, [dispatch, profile]);
+    if (!currentUser) dispatch(fetchCurrentUser());
+  }, [dispatch, currentUser]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    setFirstName(currentUser.firstName ?? '');
+    setLastName(currentUser.lastName ?? '');
+    setBio(currentUser.profile?.bio ?? '');
+    setPosition(currentUser.profile?.position ?? '');
+    setCurrentTeam(currentUser.profile?.currentTeam ?? '');
+    setLocation(currentUser.profile?.location ?? '');
+    setCareerLevel(currentUser.profile?.careerLevel ?? '');
+    setYearsExperience(
+      typeof currentUser.profile?.yearsExperience === 'number'
+        ? String(currentUser.profile.yearsExperience)
+        : '',
+    );
+    setPhotoURI(currentUser.profilePhotoUrl ?? null);
+  }, [currentUser]);
 
   async function pickPhoto(): Promise<void> {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -65,12 +82,13 @@ export default function EditProfileScreen(): React.JSX.Element {
     setPhotoURI(uri);
     setUploadingPhoto(true);
     try {
+      if (!currentUser?.id) throw new Error('Missing user id');
       const formData = new FormData();
       formData.append('photo', { uri, name: 'photo.jpg', type: 'image/jpeg' } as any);
-      await apiClient.postForm('/users/me/photo', formData);
+      await apiService.postForm(`/users/${currentUser.id}/profile-photo`, formData);
     } catch {
       Alert.alert('Upload failed', 'Could not upload photo. Please try again.');
-      setPhotoURI(profile?.photoURL ?? null);
+      setPhotoURI(currentUser?.profilePhotoUrl ?? null);
     } finally {
       setUploadingPhoto(false);
     }
@@ -83,6 +101,7 @@ export default function EditProfileScreen(): React.JSX.Element {
     }
     setSaving(true);
     try {
+      const parsedYears = yearsExperience ? parseInt(yearsExperience, 10) : undefined;
       await dispatch(updateUserProfile({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
@@ -91,7 +110,9 @@ export default function EditProfileScreen(): React.JSX.Element {
         currentTeam: currentTeam.trim(),
         location: location.trim(),
         careerLevel: careerLevel || undefined,
-        yearsExperience: yearsExperience ? parseInt(yearsExperience, 10) : undefined,
+        yearsExperience: typeof parsedYears === 'number' && !Number.isNaN(parsedYears)
+          ? parsedYears
+          : undefined,
       })).unwrap();
       navigation.goBack();
     } catch {
@@ -178,7 +199,7 @@ export default function EditProfileScreen(): React.JSX.Element {
               <TouchableOpacity
                 key={cl}
                 style={[styles.chip, careerLevel === cl && styles.chipActive]}
-                onPress={() => setCareerLevel(cl)}
+                onPress={() => setCareerLevel(cl as CareerLevel)}
               >
                 <Text style={[styles.chipText, careerLevel === cl && styles.chipTextActive]}>
                   {cl.replace('_', ' ')}

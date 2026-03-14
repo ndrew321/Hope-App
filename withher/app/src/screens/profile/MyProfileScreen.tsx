@@ -21,8 +21,7 @@ import type { ProfileStackParamList } from '../../types';
 export default function MyProfileScreen(): React.JSX.Element {
   const dispatch = useAppDispatch();
   const navigation = useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
-  const { currentUser, isLoading } = useAppSelector((s) => s.user);
-  const { recentBadges } = useAppSelector((s) => s.community);
+  const { profile: currentUser, isLoading } = useAppSelector((s) => s.user);
 
   useEffect(() => {
     dispatch(fetchCurrentUser());
@@ -64,8 +63,8 @@ export default function MyProfileScreen(): React.JSX.Element {
 
         {/* Avatar + name */}
         <View style={styles.avatarSection}>
-          {profile?.photoURL ? (
-            <Image source={{ uri: profile.photoURL }} style={styles.avatar} />
+          {currentUser?.profilePhotoUrl ? (
+            <Image source={{ uri: currentUser.profilePhotoUrl }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatar, styles.avatarPlaceholder]}>
               <Ionicons name="person" size={48} color={Colors.textDisabledLight} />
@@ -103,17 +102,17 @@ export default function MyProfileScreen(): React.JSX.Element {
         {/* Stats */}
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{currentUser?.stats?.badgeCount ?? 0}</Text>
+            <Text style={styles.statNumber}>0</Text>
             <Text style={styles.statLabel}>Badges</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{currentUser?.stats?.completedSessions ?? 0}</Text>
+            <Text style={styles.statNumber}>0</Text>
             <Text style={styles.statLabel}>Sessions</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{currentUser?.stats?.connectionsCount ?? 0}</Text>
+            <Text style={styles.statNumber}>0</Text>
             <Text style={styles.statLabel}>Connections</Text>
           </View>
         </View>
@@ -125,18 +124,7 @@ export default function MyProfileScreen(): React.JSX.Element {
             <Text style={styles.seeAll}>See All</Text>
           </TouchableOpacity>
         </View>
-        {(!recentBadges || recentBadges.length === 0) ? (
-          <Text style={styles.emptyText}>No badges earned yet. Complete sessions to earn badges!</Text>
-        ) : (
-          <View style={styles.badgeRow}>
-            {recentBadges.slice(0, 4).map((b) => (
-              <View key={b.id} style={styles.badgeChip}>
-                <Text style={styles.badgeEmoji}>{b.badge?.icon ?? '🏅'}</Text>
-                <Text style={styles.badgeName} numberOfLines={1}>{b.badge?.name}</Text>
-              </View>
-            ))}
-          </View>
-        )}
+        <Text style={styles.emptyText}>Badge sync is coming soon on web.</Text>
 
         {/* Leaderboard link */}
         <TouchableOpacity style={styles.leaderboardBtn} onPress={() => navigation.navigate('Leaderboard')}>

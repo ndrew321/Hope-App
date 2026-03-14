@@ -22,6 +22,11 @@ type RootStateLike = {
   };
 };
 
+type ProfileUpdateInput = Partial<UserProfile> & {
+  firstName?: string;
+  lastName?: string;
+};
+
 function toStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((v): v is string => typeof v === 'string' && v.trim().length > 0);
@@ -142,7 +147,19 @@ function mapProfileUpdates(updates: Partial<UserProfile>): Record<string, unknow
   if (typeof updates.currentTeam === 'string') payload.clubsTeams = [updates.currentTeam];
   if (typeof updates.yearsExperience === 'number') payload.yearsExperience = updates.yearsExperience;
   if (Array.isArray(updates.goals)) payload.mentorshipGoals = updates.goals.join(', ');
-  if (typeof updates.bio === 'string') payload.mentorshipGoals = updates.bio;
+  return payload;
+}
+
+function mapUserUpdates(updates: ProfileUpdateInput): Record<string, unknown> {
+  const payload: Record<string, unknown> = {};
+  if (typeof updates.firstName === 'string' && updates.firstName.trim().length > 0) {
+    payload.firstName = updates.firstName.trim();
+  }
+  if (typeof updates.lastName === 'string' && updates.lastName.trim().length > 0) {
+    payload.lastName = updates.lastName.trim();
+  }
+  if (typeof updates.location === 'string') payload.location = updates.location.trim();
+  if (typeof updates.bio === 'string') payload.bio = updates.bio.trim();
   return payload;
 }
 
@@ -197,14 +214,23 @@ export const fetchCurrentUser = createAsyncThunk(
 
 export const updateUserProfile = createAsyncThunk(
   'user/updateProfile',
-  async (updates: Partial<UserProfile>, { rejectWithValue, getState }) => {
+  async (updates: ProfileUpdateInput, { rejectWithValue, getState }) => {
     try {
       const state = getState() as RootStateLike;
       const userId = state.auth.appUser?.id;
       const firebaseUid = state.auth.firebaseUser?.uid;
       if (!userId) throw new Error('Missing authenticated user id');
 
-      await apiService.put(`/users/${userId}/profile`, mapProfileUpdates(updates));
+      const userPayload = mapUserUpdates(updates);
+      if (Object.keys(userPayload).length > 0) {
+        await apiService.put(`/users/${userId}`, userPayload);
+      }
+
+      const profilePayload = mapProfileUpdates(updates);
+      if (Object.keys(profilePayload).length > 0) {
+        await apiService.put(`/users/${userId}/profile`, profilePayload);
+      }
+
       const fullProfile = await apiService.get<unknown>(`/users/${userId}/full-profile`);
       return normalizeAppUser(fullProfile, { firebaseUid });
     } catch (err: unknown) {
