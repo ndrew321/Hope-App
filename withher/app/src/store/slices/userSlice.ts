@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import type { AppUser, UserProfile, UserPreferences, CareerLevel, MentorshipRole } from '../../types';
 import { apiService } from '../../services/api';
+import { tokenStorage } from '../../services/tokenStorage';
 
 interface UserState {
   profile: AppUser | null;
@@ -29,7 +30,7 @@ async function resolveServerUserIdentity(state: RootStateLike): Promise<{
 }> {
   const appUserId = state.auth.appUser?.id ?? null;
   const firebaseUid = state.auth.firebaseUser?.uid;
-  const idToken = state.auth.idToken;
+  const idToken = state.auth.idToken ?? (await tokenStorage.get());
 
   if (firebaseUid && idToken) {
     try {
