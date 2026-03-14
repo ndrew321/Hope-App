@@ -3,7 +3,7 @@ services:
     name: withher-api
     runtime: node
     rootDir: server
-    buildCommand: npm install --include=dev --legacy-peer-deps && npm run build && npx prisma generate
+    buildCommand: npm install --include=dev --legacy-peer-deps && npm run build && node node_modules/prisma/build/index.js generate
     startCommand: npm run start
     healthCheckPath: /health
     envVars:
