@@ -4,7 +4,7 @@ services:
     runtime: node
     rootDir: server
     buildCommand: npm install --include=dev --legacy-peer-deps && npm run build && node node_modules/prisma/build/index.js generate
-    startCommand: npm run start
+    startCommand: node ./node_modules/prisma/build/index.js migrate deploy && npm run start
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
