@@ -1,0 +1,9 @@
+[build]
+  base = "app"
+  command = "npm install --legacy-peer-deps && npm run web:export"
+  publish = "dist"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

@@ -1,0 +1,45 @@
+export declare const EmailService: {
+    sendModerationAlert(opts: {
+        reportedUserId: string;
+        reporterId: string;
+        reason: string;
+        severity: string;
+        action: string;
+    }): Promise<void>;
+    sendParentalConsentEmail(opts: {
+        parentEmail: string;
+        childName: string;
+        consentToken: string;
+    }): Promise<void>;
+    sendProgramWelcomeEmail(opts: {
+        mentorEmail: string;
+        menteeEmail: string;
+        mentorName: string;
+        menteeName: string;
+        programId: string;
+    }): Promise<void>;
+    sendSessionReminder(opts: {
+        recipientEmail: string;
+        recipientName: string;
+        partnerName: string;
+        sessionDate: Date;
+        hoursUntil: number;
+    }): Promise<void>;
+    sendWeeklyDigest(opts: {
+        recipientEmail: string;
+        recipientName: string;
+        newMatches: number;
+        upcomingSessions: number;
+        newBadges: string[];
+    }): Promise<void>;
+    sendPasswordResetEmail(opts: {
+        recipientEmail: string;
+        resetLink: string;
+    }): Promise<void>;
+    sendAccountSuspensionEmail(opts: {
+        recipientEmail: string;
+        recipientName: string;
+        reason: string;
+    }): Promise<void>;
+};
+//# sourceMappingURL=EmailService.d.ts.map
