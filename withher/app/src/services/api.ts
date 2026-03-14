@@ -8,7 +8,8 @@ import { resetCommunity } from '../store/slices/communitySlice';
 import type { ApiResponse } from '../types';
 import { tokenStorage } from './tokenStorage';
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/api';
+const DEFAULT_PROD_API_URL = 'https://withher-api.onrender.com/api';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? DEFAULT_PROD_API_URL;
 
 const axiosInstance: AxiosInstance = axios.create({
   baseURL: BASE_URL,
