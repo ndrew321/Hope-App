@@ -1,8 +1,47 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import type { AuthState, FirebaseUser, AppUser } from '../../types';
+import type { AuthState, FirebaseUser, AppUser, CareerLevel, MentorshipRole } from '../../types';
 import { authService } from '../../services/authService';
 import { apiService } from '../../services/api';
 import { localDevMatching } from '../../services/localDevMatching';
+
+function normalizeAuthAppUser(raw: unknown, fallbackUid: string): AppUser {
+  const user = (raw ?? {}) as Record<string, unknown>;
+  const profile = (user.profile ?? {}) as Record<string, unknown>;
+  const id = (typeof user.id === 'string' ? user.id : fallbackUid);
+  return {
+    id,
+    firebaseUid:
+      (typeof user.firebaseUid === 'string' ? user.firebaseUid : fallbackUid),
+    email: typeof user.email === 'string' ? user.email : '',
+    firstName: typeof user.firstName === 'string' ? user.firstName : 'Player',
+    lastName: typeof user.lastName === 'string' ? user.lastName : '',
+    dateOfBirth: typeof user.dateOfBirth === 'string' ? user.dateOfBirth : '2000-01-01',
+    profilePhotoUrl:
+      typeof user.profilePhotoUrl === 'string' || user.profilePhotoUrl === null
+        ? (user.profilePhotoUrl as string | null)
+        : null,
+    isActive: typeof user.deletedAt !== 'string',
+    isVerified: Boolean(user.isVerified),
+    isSuspended: String(user.verificationStatus ?? '').toUpperCase().includes('SUSPENDED'),
+    createdAt:
+      typeof user.createdAt === 'string' ? user.createdAt : new Date().toISOString(),
+    profile: {
+      id: typeof profile.id === 'string' ? profile.id : `profile-${id}`,
+      userId: typeof profile.userId === 'string' ? profile.userId : id,
+      mentorshipRole:
+        (profile.mentorshipRole as MentorshipRole) ?? 'BOTH',
+      careerLevel:
+        (profile.careerLevel as CareerLevel) ??
+        (profile.currentLevel as CareerLevel) ??
+        'HIGH_SCHOOL',
+      completenessScore:
+        (typeof profile.completenessScore === 'number' ? profile.completenessScore : undefined) ??
+        (typeof profile.profileCompletenessScore === 'number'
+          ? profile.profileCompletenessScore
+          : 0),
+    },
+  };
+}
 
 function isApiUnavailableError(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
@@ -76,12 +115,15 @@ export const registerUser = createAsyncThunk(
       );
       let appUser: AppUser;
       try {
-        appUser = await apiService.post<AppUser>('/auth/register', {
+        const apiUser = await apiService.post<unknown>('/auth/register', {
+          firebaseUid: firebaseUser.uid,
+          email: args.email,
           idToken,
           firstName: args.firstName,
           lastName: args.lastName,
           dateOfBirth: args.dateOfBirth,
         });
+        appUser = normalizeAuthAppUser(apiUser, firebaseUser.uid);
       } catch (apiErr: unknown) {
         if (!isApiUnavailableError(apiErr)) throw apiErr;
         // Local dev fallback: allow frontend flow when backend is offline.
@@ -109,7 +151,11 @@ export const loginUser = createAsyncThunk(
       );
       let appUser: AppUser;
       try {
-        appUser = await apiService.post<AppUser>('/auth/login', { idToken });
+        const apiUser = await apiService.post<unknown>('/auth/login', {
+          firebaseUid: firebaseUser.uid,
+          idToken,
+        });
+        appUser = normalizeAuthAppUser(apiUser, firebaseUser.uid);
       } catch (apiErr: unknown) {
         if (!isApiUnavailableError(apiErr)) throw apiErr;
         // Local dev fallback: prefer stored profile so prior onboarding data is preserved.

@@ -8,6 +8,7 @@ import { updateUserPreferences } from '../../store/slices/userSlice';
 import { fetchCurrentUser } from '../../store/slices/userSlice';
 import { setAppUser } from '../../store/slices/authSlice';
 import { localDevMatching } from '../../services/localDevMatching';
+import type { AppUser } from '../../types';
 import OnboardingStep from './OnboardingStep';
 
 type Props = {
@@ -41,12 +42,28 @@ export default function OnboardingPreferencesScreen({ navigation: _navigation }:
     if (appUser) {
       const updatedUser = {
         ...appUser,
-        preferences: {
-          ...appUser.preferences,
-          preferBipoc,
-          preferLgbtq,
-          locationFlexible,
-        },
+        preferences: appUser.preferences
+          ? {
+              ...appUser.preferences,
+              preferBipoc,
+              preferLgbtq,
+              locationFlexible,
+            }
+          : {
+              id: `local-prefs-${appUser.id}`,
+              userId: appUser.id,
+              preferredRoles: ['MENTOR', 'MENTEE', 'BOTH'],
+              preferredCareerLevels: [],
+              maxDistance: null,
+              locationFlexible,
+              preferBipoc,
+              preferLgbtq,
+              availabilityWeekdays: false,
+              availabilityWeekends: false,
+              availabilityMornings: false,
+              availabilityAfternoons: false,
+              availabilityEvenings: false,
+            },
         profile: {
           ...(appUser.profile ?? {
             id: `local-profile-${appUser.id}`,
@@ -57,8 +74,8 @@ export default function OnboardingPreferencesScreen({ navigation: _navigation }:
           completenessScore: 100,
         },
       };
-      dispatch(setAppUser(updatedUser));
-      localDevMatching.upsertUser(updatedUser);
+      dispatch(setAppUser(updatedUser as AppUser));
+      localDevMatching.upsertUser(updatedUser as AppUser);
       return;
     }
 
