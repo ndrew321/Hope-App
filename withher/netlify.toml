@@ -1,6 +1,6 @@
 [build]
   base = "withher/app"
-  command = "npm install --legacy-peer-deps && npm run web:export"
+  command = "npm install --legacy-peer-deps && node ./node_modules/expo/bin/cli export --platform web"
   publish = "dist"
 
 [build.environment]
